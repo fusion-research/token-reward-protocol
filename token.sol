@@ -81,11 +81,9 @@ contract Token {
     
     mapping (address => uint256) public balanceOf; // Keeping track of the total balance for a specified address.
 
-    function Token(uint256 clientBalance, uint256 lockTime, uint256 TokensToLock, uint256 SpendableTokens, uint256 m) public {
+    function Token(uint256 clientBalance, uint256 lockTime,  uint256 m) public {
         totalTokens = clientBalance;                                   
         lockingTime = lockTime;  
-        A_lock = TokensToLock;
-        A_spend = SpendableTokens;
         M = m;
     }
     
@@ -93,7 +91,7 @@ contract Token {
      * @dev Lock the tokens (A_lock) for a specified time period from the recipient's address by an owner,
      * and apply a prepaid interest ('M')
      */
-    function lock(address _recipient, address _pool) public {
+    function lock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
         balanceOf[_recipient] = balanceOf[_recipient].sub(A_lock); // Substracting the tokens needed to be locked.
         balanceOf[_pool] = balanceOf[_pool].add(A_lock); // Transferring the locked tokens to a pool.
         uint256 reward = (M.mul(A_lock)).add(A_spend); // Calculating the prepaid interest
@@ -104,7 +102,7 @@ contract Token {
      * @dev Regains the tokens previously locked from the recipient,
      * after the elapse of time period -- 'lockingTime'.
      */
-    function unlock(address _recipient, address _pool) public {
+    function unlock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
         require(lockingTime >= 90);
         balanceOf[_recipient] = balanceOf[_recipient].add(A_lock); // Adding the locked tokens back to the recipient's address.
         balanceOf[_pool] = balanceOf[_pool].sub(A_lock); // Substracting the tokens from the pool.
