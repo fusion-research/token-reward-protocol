@@ -70,8 +70,9 @@ contract owned {
 contract Token {
     using SafeMath for uint256;
     
-    uint256 public totalTokens; // The sum of locked + available tokens owned by the client.
-    uint256 public availableTokens; // Tokens that are not locked and available to use by the client.
+    mapping (address => uint256) public   totalTokens; // The sum of locked + available tokens owned by the client.
+    mapping (address => uint256) public   availableTokens; // Tokens that are not locked and available to use by the client.
+    mapping (address => uint256) public   lockedTokens; // Keeping track of the client's locked tokens. 
     
     uint256 public A_lock; // The amount of tokens to lock in a pool.
     uint256 public A_spend; // The amount of tokens the client wishes to spend. 
@@ -79,10 +80,9 @@ contract Token {
     
     uint256 public lockingTime; // Time period in which the tokens are unspendable.
     
-    mapping (address => uint256) public balanceOf; // Keeping track of the total balance for a specified address.
 
-    function Token(uint256 clientBalance, uint256 lockTime,  uint256 m) public {
-        totalTokens = clientBalance;                                   
+    function Token(address client, uint256 clientBalance, uint256 lockTime,  uint256 m) public {
+        totalTokens[client] = clientBalance;                                   
         lockingTime = lockTime;  
         M = m;
     }
@@ -91,45 +91,50 @@ contract Token {
      * @dev Lock the tokens (A_lock) for a specified time period from the recipient's address by an owner,
      * and apply a prepaid interest ('M')
      */
-    function lock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
+    function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
         uint256 lockUntil = now.add(lockingTime); // Calculating the lock time for the tokens.
+        
+        // restrictions
         require(now <= lockUntil); 
-        balanceOf[_recipient] = balanceOf[_recipient].sub(A_lock); // Substracting the tokens needed to be locked.
-        balanceOf[_pool] = balanceOf[_pool].add(A_lock); // Transferring the locked tokens to a pool.
+        require(availableTokens[_from] > A_lock + A_spend);
+        
+        totalTokens[_from] = totalTokens[_from].sub(A_spend); // Substracting the A_spend from client's (from) balance.
+        lockedTokens[_from] = lockedTokens[_from].add(A_lock); // Add the tokens to the "lockedTokens" array.
         uint256 reward = (M.mul(A_lock)).add(A_spend); // Calculating the prepaid interest
-        balanceOf[_recipient] = balanceOf[_recipient].add(reward); // Adding the interest/reward to the recipient's address.
+        totalTokens[_to] = totalTokens[_to].add(reward); // Adding the interest/reward to the recipient's address.
     }
     
     /**
      * @dev Regains the tokens previously locked from the recipient,
      * after the elapse of time period -- 'lockingTime'.
      */
-    function unlock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
+    function unlock(address _from, uint256 A_lock, uint256 A_spend) public {
         uint256 lockUntil = now.add(lockingTime);
         require(now > lockUntil);
-        balanceOf[_recipient] = balanceOf[_recipient].add(A_lock); // Adding the locked tokens back to the recipient's address.
-        balanceOf[_pool] = balanceOf[_pool].sub(A_lock); // Substracting the tokens from the pool.
+        
+        totalTokens[_from] = totalTokens[_from].add(A_spend); // Adding the locked tokens back to the client's address.
+        lockedTokens[_from] = lockedTokens[_from].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
     }
     
     /**
      * @dev Get the total amount of tokens (locked + availableTokens).
      */
-    function getTotalTokens() public returns (uint256) {
-        return totalTokens; // The total client balance initialized before deploying the contract.
+    function getTotalTokens(address client) public returns (uint256) {
+        return totalTokens[client]; // The total client balance initialized before deploying the contract.
     }
     
     /**
      * @dev Get the available tokens to spend after the locked tokens are deducted.
      */
-    function getAvailableTokens() public returns (uint256) {
-        availableTokens = totalTokens.sub(A_lock);
-        return availableTokens;
+    function getAvailableTokens(address client) public returns (uint256) {
+        availableTokens[client] = totalTokens[client].sub(lockedTokens[client]);
+        return availableTokens[client];
     }
     
     /**
      * @dev Get the specified amount of locked tokens.
      */
-    function getLockedTokens() public returns (uint256) {
-        return A_lock;
+    function getLockedTokens(address client) public returns (uint256) {
+        return lockedTokens[client];
     }
 }
