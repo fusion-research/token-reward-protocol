@@ -92,6 +92,8 @@ contract Token {
      * and apply a prepaid interest ('M')
      */
     function lock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
+        uint256 lockUntil = now.add(lockingTime); // Calculating the lock time for the tokens.
+        require(now <= lockUntil); 
         balanceOf[_recipient] = balanceOf[_recipient].sub(A_lock); // Substracting the tokens needed to be locked.
         balanceOf[_pool] = balanceOf[_pool].add(A_lock); // Transferring the locked tokens to a pool.
         uint256 reward = (M.mul(A_lock)).add(A_spend); // Calculating the prepaid interest
@@ -103,7 +105,8 @@ contract Token {
      * after the elapse of time period -- 'lockingTime'.
      */
     function unlock(address _recipient, address _pool, uint256 A_lock, uint256 A_spend) public {
-        require(lockingTime >= 90);
+        uint256 lockUntil = now.add(lockingTime);
+        require(now > lockUntil);
         balanceOf[_recipient] = balanceOf[_recipient].add(A_lock); // Adding the locked tokens back to the recipient's address.
         balanceOf[_pool] = balanceOf[_pool].sub(A_lock); // Substracting the tokens from the pool.
     }
