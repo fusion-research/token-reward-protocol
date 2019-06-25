@@ -1,40 +1,5 @@
 pragma solidity ^0.4.21;
 
-contract queue
-{
-    struct Queue {
-        uint[] data;
-        uint front;
-        uint back;
-    }
-    /// @dev the number of elements stored in the queue.
-    function length(Queue storage q) constant internal returns (uint) {
-        return q.back - q.front;
-    }
-    /// @dev the number of elements this queue can hold
-    function capacity(Queue storage q) constant internal returns (uint) {
-        return q.data.length - 1;
-    }
-    /// @dev push a new element to the back of the queue
-    function push(Queue storage q, uint data) internal
-    {
-        if ((q.back + 1) % q.data.length == q.front)
-            return; // throw;
-        q.data[q.back] = data;
-        q.back = (q.back + 1) % q.data.length;
-    }
-    /// @dev remove and return the element at the front of the queue
-    function pop(Queue storage q) internal returns (uint r)
-    {
-        if (q.back == q.front)
-            return; // throw;
-        r = q.data[q.front];
-        delete q.data[q.front];
-        q.front = (q.front + 1) % q.data.length;
-    }
-}
-
-
 /**
  * @title SafeMath
  * @dev Math operations with necessary safety checks.
@@ -81,46 +46,44 @@ library SafeMath {
   }
 }
 
-contract owned {
-    address public owner;
-
-    function owned() public {
-        owner = msg.sender;
-    }
-
-    modifier onlyOwner {
-        require(msg.sender == owner);
-        _;
-    }
-
-    function transferOwnership(address newOwner) onlyOwner public {
-        owner = newOwner;
-    }
-}
-
-
 
 /**
  * @title Token
  * @dev A minimal lockable token.
  */
-contract Token is queue {
+contract Token {
     using SafeMath for uint256;
     
-    mapping (address => uint256) public   totalTokens; // The sum of locked + available tokens owned by the client.
-    mapping (address => uint256) public   lockedTokens; // Keeping track of the client's locked tokens. 
-    mapping (address => uint256) public   lockingTimes; 
-    uint256 public M; // The reward paid out to the recipient based on a interest multiplier 'M'.
+    // A map of client addresses to their total amount of tokens (locked + available)
+    mapping (address => uint256) public   totalTokens;
+    
+    // A map of client addresses to the amout of locked tokens.
+    mapping (address => uint256) public   lockedTokens;
+    
+    // A map of client addresses to times (unix time) when the client locked funds.
+    mapping (address => uint256[]) public   lockingTimes;
+    
+    // A map of client addresses to the amount of tokens locked.
+    // These amounts correspond to the times stored in lockingTimes.
+    mapping (address => uint256[]) public lockingAmounts;
+    
+    // Interest multiplier, where locking 1 token produces M new tokens.
+    // We expect that M will be significantly lower than 1.
+    uint256 public M;
+    
+    // The duration that tokens will be locked, in milliseconds.
+    uint256 public LT;
 
-    struct client {
-        address clientAddress;
-        uint256 clientslockedTokens; 
-        uint256 lockingTime;  // Time period in which the tokens are unspendable.
+    /*struct client {
+        address   clientAddress;
+        uint256[] clientslockedTokens; 
+        uint256[] lockedToken_times;
     }
+    
+    client[] Client;  // A list of clients.*/
 
-
-    function Token(address _client, uint256 _clientBalance, uint256 _lockTime,  uint256 _m) public {
-        client c = client(_client, lockedTokens[_client], (_lockTime * now));
+    function Token(uint256 _lockTime,  uint256 _m) public {
+        LT = _lockTime; // Number of milliseconds. 
         M = _m;
     }
     
@@ -129,26 +92,36 @@ contract Token is queue {
      * and apply a prepaid interest ('M')
      */
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
-        uint256 lockUntil = now.add(client.lockingTime); // Calculating the lock time for the tokens.
+        // Calculating the lock time for the tokens.
+        uint256 lockUntil = now.add(LT); 
         
-        totalTokens[_from] = totalTokens[_from].sub(A_spend); // Substracting the A_spend from client's (from) balance.
-        lockedTokens[_from] = lockedTokens[_from].add(A_lock); // Add the tokens to the "lockedTokens" array.
-        uint256 reward = (M.mul(A_lock)).add(A_spend); // Calculating the prepaid interest
-        totalTokens[_to] = totalTokens[_to].add(reward); // Adding the interest/reward to the recipient's address.
+        while(lockUntil <= now){
+            // Substracting the A_spend from client's (from) balance.
+            totalTokens[_from] = totalTokens[_from].sub(A_spend); 
+        
+            // Add the tokens to the "lockedTokens" array.
+            lockedTokens[_from] = lockedTokens[_from].add(A_lock); 
+        
+            // Calculating the prepaid interest
+            uint256 reward = (M.mul(A_lock)).add(A_spend); 
+        
+            // Adding the interest/reward to the recipient's address.
+            totalTokens[_to] = totalTokens[_to].add(reward); 
+        }
     }
     
     /**
      * @dev Regains the tokens previously locked from the recipient,
      * after the elapse of time period -- 'lockingTime'.
      */
-    function unlock(address _from, uint256 A_lock, uint256 A_spend) public {
-        uint256 lockUntil = now.add(client.lockingTime);
-        Queue qlt = lockingTimes[_from];
+    function unlock(address _client, uint256 A_lock, uint256 A_spend) public {
+        // Calculating the lock time for the tokens.
+        uint256 lockUntil = now.add(LT);
         
-        for(uint8 i = 0; i < client.lockedTokens.length; i++){
+        for(uint256 i = 0; i < lockingAmounts[_client].length; i++){
             if(now > lockUntil){
-                totalTokens[_from] = totalTokens[_from].add(A_spend); // Adding the locked tokens back to the client's address.
-                lockedTokens[_from] = lockedTokens[_from].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
+                totalTokens[_client] = totalTokens[_client].add(A_spend); // Adding the locked tokens back to the client's address.
+                lockedTokens[_client] = lockedTokens[_client].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
             }
         }
     }
@@ -156,22 +129,22 @@ contract Token is queue {
     /**
      * @dev Get the total amount of tokens (locked + availableTokens).
      */
-    function getTotalTokens(address client) public view returns (uint256) {
-        return totalTokens[client]; // The total client balance initialized before deploying the contract.
+    function getTotalTokens(address _client) public view returns (uint256) {
+        return totalTokens[_client]; // The total client balance initialized before deploying the contract.
     }
     
     /**
      * @dev Get the available tokens to spend after the locked tokens are deducted.
      */
-    function getAvailableTokens(address client) public view returns (uint256) {
-        uint256 availableTokens = totalTokens[client].sub(lockedTokens[client]);
+    function getAvailableTokens(address _client) public view returns (uint256) {
+        uint256 availableTokens = totalTokens[_client].sub(lockedTokens[_client]);
         return availableTokens;
     }
     
     /**
      * @dev Get the specified amount of locked tokens.
      */
-    function getLockedTokens(address client) public view returns (uint256) {
-        return lockedTokens[client];
+    function getLockedTokens(address _client) public view returns (uint256) {
+        return lockedTokens[_client];
     }
 }
