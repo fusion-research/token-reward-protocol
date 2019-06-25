@@ -1,5 +1,40 @@
 pragma solidity ^0.4.21;
 
+contract queue
+{
+    struct Queue {
+        uint[] data;
+        uint front;
+        uint back;
+    }
+    /// @dev the number of elements stored in the queue.
+    function length(Queue storage q) constant internal returns (uint) {
+        return q.back - q.front;
+    }
+    /// @dev the number of elements this queue can hold
+    function capacity(Queue storage q) constant internal returns (uint) {
+        return q.data.length - 1;
+    }
+    /// @dev push a new element to the back of the queue
+    function push(Queue storage q, uint data) internal
+    {
+        if ((q.back + 1) % q.data.length == q.front)
+            return; // throw;
+        q.data[q.back] = data;
+        q.back = (q.back + 1) % q.data.length;
+    }
+    /// @dev remove and return the element at the front of the queue
+    function pop(Queue storage q) internal returns (uint r)
+    {
+        if (q.back == q.front)
+            return; // throw;
+        r = q.data[q.front];
+        delete q.data[q.front];
+        q.front = (q.front + 1) % q.data.length;
+    }
+}
+
+
 /**
  * @title SafeMath
  * @dev Math operations with necessary safety checks.
@@ -63,32 +98,30 @@ contract owned {
     }
 }
 
-import './queue.sol';
-import './deque.sol';
+
 
 /**
  * @title Token
- * @dev 
+ * @dev A minimal lockable token.
  */
-contract Token is queue, deque {
+contract Token is queue {
     using SafeMath for uint256;
     
     mapping (address => uint256) public   totalTokens; // The sum of locked + available tokens owned by the client.
     mapping (address => uint256) public   lockedTokens; // Keeping track of the client's locked tokens. 
-    
+    mapping (address => uint256) public   lockingTimes; 
     uint256 public M; // The reward paid out to the recipient based on a interest multiplier 'M'.
 
     struct client {
         address clientAddress;
-        uint256 amountOfLockedTokens; 
+        uint256 clientslockedTokens; 
         uint256 lockingTime;  // Time period in which the tokens are unspendable.
     }
 
 
-    function Token(address client, uint256 clientBalance, uint256 lockTime,  uint256 m) public {
-        totalTokens[client] = clientBalance;                                   
-        lockingTime = lockTime;  
-        M = m;
+    function Token(address _client, uint256 _clientBalance, uint256 _lockTime,  uint256 _m) public {
+        client c = client(_client, lockedTokens[_client], (_lockTime * now));
+        M = _m;
     }
     
     /**
@@ -96,7 +129,7 @@ contract Token is queue, deque {
      * and apply a prepaid interest ('M')
      */
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
-        uint256 lockUntil = now.add(lockingTime); // Calculating the lock time for the tokens.
+        uint256 lockUntil = now.add(client.lockingTime); // Calculating the lock time for the tokens.
         
         totalTokens[_from] = totalTokens[_from].sub(A_spend); // Substracting the A_spend from client's (from) balance.
         lockedTokens[_from] = lockedTokens[_from].add(A_lock); // Add the tokens to the "lockedTokens" array.
@@ -109,11 +142,15 @@ contract Token is queue, deque {
      * after the elapse of time period -- 'lockingTime'.
      */
     function unlock(address _from, uint256 A_lock, uint256 A_spend) public {
-        uint256 lockUntil = now.add(lockingTime);
-        require(now > lockUntil);
+        uint256 lockUntil = now.add(client.lockingTime);
+        Queue qlt = lockingTimes[_from];
         
-        totalTokens[_from] = totalTokens[_from].add(A_spend); // Adding the locked tokens back to the client's address.
-        lockedTokens[_from] = lockedTokens[_from].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
+        for(uint8 i = 0; i < client.lockedTokens.length; i++){
+            if(now > lockUntil){
+                totalTokens[_from] = totalTokens[_from].add(A_spend); // Adding the locked tokens back to the client's address.
+                lockedTokens[_from] = lockedTokens[_from].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
+            }
+        }
     }
     
     /**
