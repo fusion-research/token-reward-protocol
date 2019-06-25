@@ -74,14 +74,6 @@ contract Token {
     // The duration that tokens will be locked, in milliseconds.
     uint256 public LT;
 
-    /*struct client {
-        address   clientAddress;
-        uint256[] clientslockedTokens; 
-        uint256[] lockedToken_times;
-    }
-    
-    client[] Client;  // A list of clients.*/
-
     function Token(uint256 _lockTime,  uint256 _m) public {
         LT = _lockTime; // Number of milliseconds. 
         M = _m;
@@ -94,36 +86,41 @@ contract Token {
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
         // Calculating the lock time for the tokens.
         uint256 lockUntil = now.add(LT); 
+        //require(lockUntil <= now);
         
-        while(lockUntil <= now){
-            // Substracting the A_spend from client's (from) balance.
-            totalTokens[_from] = totalTokens[_from].sub(A_spend); 
+        // Substracting the A_spend from client's (_from) balance.
+        totalTokens[_from] = totalTokens[_from].sub(A_spend); 
         
-            // Add the tokens to the "lockedTokens" array.
-            lockedTokens[_from] = lockedTokens[_from].add(A_lock); 
+        // Add the tokens to the "lockedTokens" array.
+        lockedTokens[_from] = lockedTokens[_from].add(A_lock); 
         
-            // Calculating the prepaid interest
-            uint256 reward = (M.mul(A_lock)).add(A_spend); 
+        // Calculating the prepaid interest
+        uint256 reward = (M.mul(A_lock)).add(A_spend); 
         
-            // Adding the interest/reward to the recipient's address.
-            totalTokens[_to] = totalTokens[_to].add(reward); 
-        }
+        // Adding the interest/reward to the recipient's address.
+        totalTokens[_to] = totalTokens[_to].add(reward); 
+            
+        // Storing the time when the locked tokens may be used by _from again.
+        lockingTimes[_from].push(lockUntil);
+        lockingAmounts[_from].push(A_lock);
     }
     
     /**
      * @dev Regains the tokens previously locked from the recipient,
      * after the elapse of time period -- 'lockingTime'.
      */
-    function unlock(address _client, uint256 A_lock, uint256 A_spend) public {
-        // Calculating the lock time for the tokens.
-        uint256 lockUntil = now.add(LT);
-        
-        for(uint256 i = 0; i < lockingAmounts[_client].length; i++){
-            if(now > lockUntil){
-                totalTokens[_client] = totalTokens[_client].add(A_spend); // Adding the locked tokens back to the client's address.
-                lockedTokens[_client] = lockedTokens[_client].sub(A_lock); // Substracting the tokens from the "lockedTokens" array.
+    function unlock(address _client) public {
+        // Unlock all tokens that have passed their locking period.
+        uint256 i;
+        for(i = 0; i < lockingTimes[_client].length; i++){
+            if(now > lockingTimes[_client][i]){
+                uint256 amt = lockingAmounts[_client][i];
+                lockedTokens[_client] = lockedTokens[_client].sub(amt); 
             }
         }
+        
+        // Update our arrays
+        
     }
     
     /**
