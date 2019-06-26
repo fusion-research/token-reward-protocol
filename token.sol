@@ -74,7 +74,9 @@ contract Token {
     // The duration that tokens will be locked, in milliseconds.
     uint256 public LT;
 
-    function Token(uint256 _lockingDuration,  uint256 _multiplier) public {
+    function Token(address _client, uint256 _clientTokens, 
+    uint256 _lockingDuration,  uint256 _multiplier) public {
+        totalTokens[_client] = _clientTokens;
         LT = _lockingDuration; 
         M = _multiplier;
     }
@@ -119,19 +121,20 @@ contract Token {
             }
         }
         
-        uint256 lIndexLockingTimes = lockingTimes[_client][i];
-        uint256 lIndexLockingAmounts = lockingAmounts[_client][i];
+        // Deducting elapsed locking time periods and tokens.
         
-        for(uint256 x = lIndexLockingTimes; lIndexLockingTimes > 0; x--){
-            // Manually deducting locking times and shifting elements. 
-            delete lockingTimes[_client][x];
-            lockingTimes[_client][x] = lockingTimes[_client][x-1];
+        for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
+            uint256[] remainingLockingTimes;
+            remainingLockingTimes.push(lockingTimes[_client][j]);
+            
+            lockingTimes[_client] = remainingLockingTimes;
         }
         
-        for(uint256 y = lIndexLockingAmounts; lIndexLockingAmounts > 0; y--){
-            // Manually deducting locking amounts and shifting elements. 
-            delete lockingAmounts[_client][y];
-            lockingAmounts[_client][y] = lockingAmounts[_client][y-1];
+        for(uint256 k = lockingAmounts[_client][i]; k < lockingAmounts[_client].length; k++){
+            uint256[] remainingLockingAmounts;
+            remainingLockingAmounts.push(lockingAmounts[_client][k]);
+            
+            lockingAmounts[_client] = remainingLockingAmounts;
         }
     }
     
