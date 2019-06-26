@@ -74,13 +74,14 @@ contract Token {
     // The duration that tokens will be locked, in milliseconds.
     uint256 public LT;
 
-    function Token(uint256 _lockTime,  uint256 _m) public {
-        LT = _lockTime; 
-        M = _m;
+    function Token(uint256 _lockingDuration,  uint256 _multiplier) public {
+        LT = _lockingDuration; 
+        M = _multiplier;
     }
     
     /**
-     * @dev Lock the tokens (A_lock) for a specified time period from the recipient's address by an owner,
+     * @dev Lock the tokens (A_lock) for a specified time period 
+     * from the recipient's address by an owner,
      * and apply a prepaid interest ('M')
      */
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
@@ -106,7 +107,7 @@ contract Token {
     
     /**
      * @dev Regains the tokens previously locked from the recipient,
-     * after the elapse of time period -- 'lockingTime'.
+     * after the elapse of time period -- 'LT'.
      */
     function unlock(address _client) public {
         // Unlock all tokens that have passed their locking period.
@@ -117,16 +118,20 @@ contract Token {
                 lockedTokens[_client] = lockedTokens[_client].sub(amt); 
             }
         }
-        uint256 lastIndex = lockingTimes[_client][i];
         
-        for(uint256 x = lastIndex; lastIndex > 0; x--){
+        uint256 lIndexLockingTimes = lockingTimes[_client][i];
+        uint256 lIndexLockingAmounts = lockingAmounts[_client][i];
+        
+        for(uint256 x = lIndexLockingTimes; lIndexLockingTimes > 0; x--){
             // Manually deducting locking times and shifting elements. 
             delete lockingTimes[_client][x];
-            delete lockingAmounts[_client][x];
-            
-            // shifting the elements in the array
             lockingTimes[_client][x] = lockingTimes[_client][x-1];
-            lockingAmounts[_client][x] = lockingAmounts[_client][x-1];
+        }
+        
+        for(uint256 y = lIndexLockingAmounts; lIndexLockingAmounts > 0; y--){
+            // Manually deducting locking amounts and shifting elements. 
+            delete lockingAmounts[_client][y];
+            lockingAmounts[_client][y] = lockingAmounts[_client][y-1];
         }
     }
     
