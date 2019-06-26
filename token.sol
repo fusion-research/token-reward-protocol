@@ -75,7 +75,7 @@ contract Token {
     uint256 public LT;
 
     function Token(uint256 _lockTime,  uint256 _m) public {
-        LT = _lockTime; // Number of milliseconds. 
+        LT = _lockTime; 
         M = _m;
     }
     
@@ -86,8 +86,7 @@ contract Token {
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
         // Calculating the lock time for the tokens.
         uint256 lockUntil = now.add(LT); 
-        //require(lockUntil <= now);
-        
+
         // Substracting the A_spend from client's (_from) balance.
         totalTokens[_from] = totalTokens[_from].sub(A_spend); 
         
@@ -118,14 +117,16 @@ contract Token {
                 lockedTokens[_client] = lockedTokens[_client].sub(amt); 
             }
         }
-        // Manually deducting locking times and shifting elements. 
         uint256 lastIndex = lockingTimes[_client][i];
         
-        for(uint256 x = lastIndex; lastIndex >= 0; x--){
+        for(uint256 x = lastIndex; lastIndex > 0; x--){
+            // Manually deducting locking times and shifting elements. 
             delete lockingTimes[_client][x];
+            delete lockingAmounts[_client][x];
             
             // shifting the elements in the array
             lockingTimes[_client][x] = lockingTimes[_client][x-1];
+            lockingAmounts[_client][x] = lockingAmounts[_client][x-1];
         }
     }
     
@@ -142,8 +143,7 @@ contract Token {
      */
     function getAvailableTokens(address _client) public view returns (uint256) {
         // Calculating the availableTokens owned by a client after deducting the locked tokens.
-        uint256 availableTokens = totalTokens[_client].sub(lockedTokens[_client]);
-        return availableTokens;
+        return totalTokens[_client].sub(lockedTokens[_client]);
     }
     
     /**
