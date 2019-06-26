@@ -119,7 +119,7 @@ contract Token {
             }
         }
         // Manually deducting locking times and shifting elements. 
-        uint256 lastIndex = lockingTimes[_client][i - 1];
+        uint256 lastIndex = lockingTimes[_client][i];
         
         for(uint256 x = lastIndex; lastIndex >= 0; x--){
             delete lockingTimes[_client][x];
