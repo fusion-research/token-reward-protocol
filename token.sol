@@ -118,22 +118,30 @@ contract Token {
                 lockedTokens[_client] = lockedTokens[_client].sub(amt); 
             }
         }
+        // Manually deducting locking times and shifting elements. 
+        uint256 lastIndex = lockingTimes[_client][i - 1];
         
-        // Update our arrays
-        
+        for(uint256 x = lastIndex; lastIndex >= 0; x--){
+            delete lockingTimes[_client][x];
+            
+            // shifting the elements in the array
+            lockingTimes[_client][x] = lockingTimes[_client][x-1];
+        }
     }
     
     /**
      * @dev Get the total amount of tokens (locked + availableTokens).
      */
     function getTotalTokens(address _client) public view returns (uint256) {
-        return totalTokens[_client]; // The total client balance initialized before deploying the contract.
+        // The total client balance initialized before deploying the contract.
+        return totalTokens[_client]; 
     }
     
     /**
      * @dev Get the available tokens to spend after the locked tokens are deducted.
      */
     function getAvailableTokens(address _client) public view returns (uint256) {
+        // Calculating the availableTokens owned by a client after deducting the locked tokens.
         uint256 availableTokens = totalTokens[_client].sub(lockedTokens[_client]);
         return availableTokens;
     }
@@ -142,6 +150,7 @@ contract Token {
      * @dev Get the specified amount of locked tokens.
      */
     function getLockedTokens(address _client) public view returns (uint256) {
+        // Returns the number of locked tokens owned by a client.
         return lockedTokens[_client];
     }
 }
