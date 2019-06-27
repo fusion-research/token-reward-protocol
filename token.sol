@@ -71,13 +71,13 @@ contract Token {
     // We expect that M will be significantly lower than 1.
     uint256 public M;
     
-    // The duration that tokens will be locked, in seconds.
+    // The duration that tokens will be locked, in unix time.
     uint256 public LT;
 
     function Token(address _client, uint256 _clientTokens, 
     uint256 _lockingDuration,  uint256 _multiplier) public {
         totalTokens[_client] = _clientTokens;
-        LT = _lockingDuration * 1 seconds; 
+        LT = _lockingDuration; 
         M = _multiplier;
     }
     
@@ -88,7 +88,7 @@ contract Token {
      */
     function lock(address _from, address _to, uint256 A_lock, uint256 A_spend) public {
         // Calculating the lock time for the tokens.
-        uint256 lockUntil = now.add(LT); 
+        uint256 lockUntil = (now).add(LT); 
 
         // Substracting the A_spend from client's (_from) balance.
         totalTokens[_from] = totalTokens[_from].sub(A_spend); 
@@ -115,7 +115,7 @@ contract Token {
         // Unlock all tokens that have passed their locking period.
         uint256 i;
         for(i = 0; i < lockingTimes[_client].length; i++){
-            if(now > lockingTimes[_client][i]){
+            if((now) > lockingTimes[_client][i]){
                 uint256 amt = lockingAmounts[_client][i];
                 lockedTokens[_client] = lockedTokens[_client].sub(amt); 
             }
@@ -124,8 +124,8 @@ contract Token {
         // Deducting elapsed locking time periods and tokens.
         uint256[] remainingLockingTimes;
         uint256[] remainingLockingAmounts;
-        
-        for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
+        if(lockingTimes[_client].length > 1){
+            for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
             remainingLockingTimes.push(lockingTimes[_client][j]);
         }
         
@@ -136,6 +136,7 @@ contract Token {
         // Re-assigning the remaining locking times and amounts.
         lockingTimes[_client] = remainingLockingTimes;
         lockingAmounts[_client] = remainingLockingAmounts;
+        }
     }
     
     /**
@@ -144,6 +145,13 @@ contract Token {
     function getTotalTokens(address _client) public view returns (uint256) {
         // The total client balance initialized before deploying the contract.
         return totalTokens[_client]; 
+    }
+    
+    /**
+     * @dev Get the locking times associated to the client address.
+     */
+    function getLockingTimes(address _client) public view returns (uint256) {
+        return lockingTimes[_client][0]; 
     }
     
     /**
