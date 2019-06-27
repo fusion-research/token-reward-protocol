@@ -124,18 +124,23 @@ contract Token {
         // Deducting elapsed locking time periods and tokens.
         uint256[] remainingLockingTimes;
         uint256[] remainingLockingAmounts;
+        
         if(lockingTimes[_client].length > 1){
             for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
-            remainingLockingTimes.push(lockingTimes[_client][j]);
-        }
+                remainingLockingTimes.push(lockingTimes[_client][j]);
+            }
         
-        for(uint256 k = lockingAmounts[_client][i]; k < lockingAmounts[_client].length; k++){
-            remainingLockingAmounts.push(lockingAmounts[_client][k]);
-        }
+            for(uint256 k = lockingAmounts[_client][i]; k < lockingAmounts[_client].length; k++){
+                remainingLockingAmounts.push(lockingAmounts[_client][k]);
+            }
         
-        // Re-assigning the remaining locking times and amounts.
-        lockingTimes[_client] = remainingLockingTimes;
-        lockingAmounts[_client] = remainingLockingAmounts;
+            // Re-assigning the remaining locking times and amounts.
+            lockingTimes[_client] = remainingLockingTimes;
+            lockingAmounts[_client] = remainingLockingAmounts;
+        }
+        else{
+            delete lockingTimes[_client][i];
+            delete lockingAmounts[_client][i];
         }
     }
     
