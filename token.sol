@@ -112,36 +112,28 @@ contract Token {
      * after the elapse of time period -- 'LT'.
      */
     function unlock(address _client) public {
+        uint256 i = 0;
+        
         // Unlock all tokens that have passed their locking period.
-        uint256 i;
-        for(i = 0; i < lockingTimes[_client].length; i++){
-            if((now) > lockingTimes[_client][i]){
-                uint256 amt = lockingAmounts[_client][i];
-                lockedTokens[_client] = lockedTokens[_client].sub(amt); 
-            }
+        while(i < lockingTimes[_client].length && now > lockingTimes[_client][i]){
+            uint256 amt = lockingAmounts[_client][i];
+            lockedTokens[_client] = lockedTokens[_client].sub(amt); 
+            i++;
         }
         
-        // Deducting elapsed locking time periods and tokens.
+        // Removing elapsed locking time periods and tokens.
         uint256[] remainingLockingTimes;
         uint256[] remainingLockingAmounts;
         
-        if(lockingTimes[_client].length > 1){
-            for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
-                remainingLockingTimes.push(lockingTimes[_client][j]);
-            }
-        
-            for(uint256 k = lockingAmounts[_client][i]; k < lockingAmounts[_client].length; k++){
-                remainingLockingAmounts.push(lockingAmounts[_client][k]);
-            }
-        
-            // Re-assigning the remaining locking times and amounts.
-            lockingTimes[_client] = remainingLockingTimes;
-            lockingAmounts[_client] = remainingLockingAmounts;
+        while(i < lockingTimes[_client].length) {
+            remainingLockingTimes.push(lockingTimes[_client][i]);
+            remainingLockingAmounts.push(lockingAmounts[_client][i]);
+            i++;
         }
-        else{
-            delete lockingTimes[_client][i];
-            delete lockingAmounts[_client][i];
-        }
+        
+        // Re-assigning the remaining locking times and amounts.
+        lockingTimes[_client] = remainingLockingTimes;
+        lockingAmounts[_client] = remainingLockingAmounts;
     }
     
     /**
