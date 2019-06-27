@@ -71,13 +71,13 @@ contract Token {
     // We expect that M will be significantly lower than 1.
     uint256 public M;
     
-    // The duration that tokens will be locked, in milliseconds.
+    // The duration that tokens will be locked, in seconds.
     uint256 public LT;
 
     function Token(address _client, uint256 _clientTokens, 
     uint256 _lockingDuration,  uint256 _multiplier) public {
         totalTokens[_client] = _clientTokens;
-        LT = _lockingDuration; 
+        LT = _lockingDuration * 1 seconds; 
         M = _multiplier;
     }
     
@@ -122,20 +122,20 @@ contract Token {
         }
         
         // Deducting elapsed locking time periods and tokens.
+        uint256[] remainingLockingTimes;
+        uint256[] remainingLockingAmounts;
         
         for(uint256 j = lockingTimes[_client][i]; j < lockingTimes[_client].length; j++){
-            uint256[] remainingLockingTimes;
             remainingLockingTimes.push(lockingTimes[_client][j]);
-            
-            lockingTimes[_client] = remainingLockingTimes;
         }
         
         for(uint256 k = lockingAmounts[_client][i]; k < lockingAmounts[_client].length; k++){
-            uint256[] remainingLockingAmounts;
             remainingLockingAmounts.push(lockingAmounts[_client][k]);
-            
-            lockingAmounts[_client] = remainingLockingAmounts;
         }
+        
+        // Re-assigning the remaining locking times and amounts.
+        lockingTimes[_client] = remainingLockingTimes;
+        lockingAmounts[_client] = remainingLockingAmounts;
     }
     
     /**
